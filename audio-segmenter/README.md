@@ -7,6 +7,7 @@ This tool is designed for creating speech-to-text datasets, language learning ma
 ## 🌟 Features
 
 * **Dual Format Support:** Native support for both `.srt` and `.lrc` lyrics files.
+* **Real-time Progress Tracking:** Visual progress bar with live percentage and status updates during processing.
 * **Precise Cutting:** Uses Millisecond-level precision.
 * **Hashed Filenames:** Generates unique, hashed filenames for segments to avoid conflicts.
 * **Dual Interfaces:** Includes both a Command Line Interface (CLI) for automation and a GUI for ease of use on Windows.
@@ -143,8 +144,8 @@ By default, the `.exe` requires FFmpeg to be installed on the target system. To 
 
 You can package this tool into a single `.exe` file that runs on any Windows machine **without** requiring Python or a pre-installed FFmpeg.
 
-* Download `ffmpeg.exe` (Version 5.0+ recommended, "Release Essentials" version) (e.g., from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)) .
-* Place `ffmpeg.exe` in the root of the `audio-segmenter/` folder (next to `main_gui.py`).
+* Download `ffmpeg.exe` and `ffprobe.exe` (Version 5.0+ recommended, "Release Essentials" version) (e.g., from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)) .
+* Place `ffmpeg.exe` and `ffprobe.exe` in the root of the `audio-segmenter/` folder (next to `main_gui.py`).
 * Ensure you have modified `main_gui.py` to include the `sys._MEIPASS` path routing logic.
 
 ### 2. Run the Portable Build Command
@@ -152,7 +153,7 @@ This command bundles the FFmpeg binary, your code, and the required metadata int
 (the --clean and --copy-metadata imageio flags are strictly required) from the root directory
 
 ```bash
-pyinstaller --noconfirm --clean --onefile --windowed --name "AudioSegmenter" --copy-metadata imageio --add-data "core;core" --add-data "gui;gui" --add-binary "ffmpeg.exe;." main_gui.py
+pyinstaller --noconfirm --clean --onefile --windowed --name "AudioSegmenter" --copy-metadata imageio --add-data "core;core" --add-data "gui;gui" --add-binary "ffmpeg.exe;." --add-binary "ffprobe.exe;." main_gui.py  
 ```
 
 - File Size: The file will be around 80MB-120MB because it now contains the FFmpeg engine.

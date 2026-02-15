@@ -15,16 +15,24 @@ class SegmentProcessor:
         self.csv_path = os.path.join(self.output_dir, "metadata.csv")
         self.status_callback = status_callback
 
-    def _update_status(self, message):
-        print(f"[Processor] {message}")
+    def _update_status(self, message, percent=None):
+        """Helper to safely trigger the callback with percentage data."""
         if self.status_callback:
-            self.status_callback(message)
+            try:
+                # GUI Callback handles (message, percent)
+                self.status_callback(message, percent)
+            except TypeError:
+                # CLI Callback fallback
+                if percent is not None:
+                    self.status_callback(f"{message} ({percent}%)")
+                else:
+                    self.status_callback(message)
 
     def _ensure_dirs(self):
         os.makedirs(self.segments_dir, exist_ok=True)
 
     def _extract_full_audio(self):
-        self._update_status("Extracting full audio track from video...")
+        self._update_status("Extracting full audio track from video (this may take a while)...", 10)
         temp_audio_path = os.path.join(self.output_dir, "temp_full.mp3")
 
         if not os.path.exists(self.video_path):
@@ -36,7 +44,7 @@ class SegmentProcessor:
             video.close()
             return temp_audio_path
         except Exception as e:
-            self._update_status(f"Error during extraction. Is FFmpeg installed? Error: {e}")
+            self._update_status(f"Error during extraction: {e}")
             raise e
 
     def _generate_filename(self, index, text_snippet):
@@ -48,9 +56,8 @@ class SegmentProcessor:
         self._ensure_dirs()
         csv_data = []
 
-        self._update_status("Parsing subtitle file...")
+        self._update_status("Parsing subtitle file...", 2)
 
-        # Route logic based on file extension
         if self.srt_path.lower().endswith('.lrc'):
             segments_data = parse_lrc_file(self.srt_path)
         else:
@@ -59,15 +66,16 @@ class SegmentProcessor:
         total_segments = len(segments_data)
 
         if total_segments == 0:
-            self._update_status("Error: No valid segments found in subtitle file.")
+            self._update_status("Error: No valid segments found in subtitle file.", 0)
             return
 
+        # 10% progress reaches here
         temp_audio_path = self._extract_full_audio()
 
-        self._update_status("Loading audio into memory for slicing...")
+        self._update_status("Loading audio into memory for slicing...", 30)
         full_audio = AudioSegment.from_file(temp_audio_path)
 
-        self._update_status(f"Starting segmentation of {total_segments} clips...")
+        self._update_status(f"Starting segmentation of {total_segments} clips...", 35)
 
         for i, seg in enumerate(segments_data):
             start_ms = seg['start_ms']
@@ -85,10 +93,13 @@ class SegmentProcessor:
             clip.export(output_path, format="mp3")
             csv_data.append([text, os.path.abspath(output_path), filename])
 
-            if (i + 1) % 5 == 0 or (i + 1) == total_segments:
-                self._update_status(f"Processed {i + 1}/{total_segments} segments.")
+            # Calculate progress mapping from 35% to 95%
+            current_progress = 35 + int(((i + 1) / total_segments) * 60)
 
-        self._update_status("Writing CSV metadata file...")
+            if (i + 1) % 2 == 0 or (i + 1) == total_segments:
+                self._update_status(f"Processed {i + 1}/{total_segments} segments.", current_progress)
+
+        self._update_status("Writing CSV metadata file...", 98)
         with open(self.csv_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['Transcript Text', 'Absolute Audio Path', 'Hashed Filename'])
@@ -97,4 +108,4 @@ class SegmentProcessor:
         if os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
 
-        self._update_status(f"Completed! Output saved to: {self.output_dir}")
+        self._update_status(f"Completed! Output saved to: {self.output_dir}", 100)

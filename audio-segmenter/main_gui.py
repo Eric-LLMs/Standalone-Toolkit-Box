@@ -1,31 +1,42 @@
 import os
 import sys
-
-# ==========================================
-# PyInstaller FFmpeg Path Routing
-# ==========================================
-if getattr(sys, 'frozen', False):
-    # If running as a bundled executable, point to the extracted temp folder
-    bundle_dir = sys._MEIPASS
-    ffmpeg_path = os.path.join(bundle_dir, "ffmpeg.exe")
-    os.environ["IMAGEIO_FFMPEG_EXE"] = ffmpeg_path
-
+import subprocess
 import tkinter as tk
 from gui.ui import AudioSegmenterApp
 
-# This file is the entry point for building the exe.
-# It initializes the Tkinter root window and starts the main loop.
+# ==========================================
+# Suppress Subprocess Console Windows
+# ==========================================
+if os.name == 'nt':
+    _original_popen = subprocess.Popen
 
+
+    def _patched_popen(*args, **kwargs):
+        if 'creationflags' not in kwargs:
+            kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+        else:
+            kwargs['creationflags'] |= subprocess.CREATE_NO_WINDOW
+        return _original_popen(*args, **kwargs)
+
+
+    subprocess.Popen = _patched_popen
+
+# ==========================================
+# Portable Environment Configuration
+# ==========================================
+if getattr(sys, 'frozen', False):
+    bundle_dir = sys._MEIPASS
+
+    ffmpeg_bin = os.path.join(bundle_dir, "ffmpeg.exe")
+    ffprobe_bin = os.path.join(bundle_dir, "ffprobe.exe")
+
+    os.environ["IMAGEIO_FFMPEG_EXE"] = ffmpeg_bin
+    os.environ["PATH"] = bundle_dir + os.pathsep + os.environ.get("PATH", "")
+
+# ==========================================
+# Application Entry Point
+# ==========================================
 if __name__ == "__main__":
-    try:
-        # Attempt to handle high DPI displays on Windows for sharper UI
-        from ctypes import windll
-        windll.shcore.SetProcessDpiAwareness(1)
-    except:
-        pass # Fail silently on non-Windows systems
-
     root = tk.Tk()
     app = AudioSegmenterApp(root)
-    # Set a basic icon if available (ensure assets folder exists if using this)
-    # root.iconbitmap("assets/icon.ico")
     root.mainloop()
