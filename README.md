@@ -1,7 +1,9 @@
 # 🛠️ Standalone Toolkit Box
-
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/Eric-LLMs/Standalone-Toolkit-Box?label=Download%20AudioSegmenter&style=for-the-badge&color=brightgreen)](https://github.com/Eric-LLMs/Standalone-Toolkit-Box/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+
+---
 
 **A curated collection of atomic, standalone Python scripts and GUI utilities for daily automation.**
 
@@ -18,11 +20,10 @@ This repository embraces a strictly **"Standalone"** design philosophy:
 
 Click on a tool's name to navigate to its dedicated directory and view detailed usage instructions.
 
-| Tool Name | Category | Description | Tech Stack |
-| :--- | :--- | :--- | :--- |
-| 🎬 **[Audio Segmenter](./audio-segmenter/)** | Media Processing | Extracts audio from video and precisely slices it based on `.srt` or `.lrc` subtitle timestamps. Supports both GUI and CLI. | `Tkinter`, `moviepy`, `pydub` |
-| 🚧 *(Upcoming Tool)* | TBD | ... | ... |
-| 🚧 *(Upcoming Tool)* | TBD | ... | ... |
+| Tool Name | Category | Description                                                                                                                 | Tech Stack | Latest Download |
+| :--- | :--- |:----------------------------------------------------------------------------------------------------------------------------| :--- | :--- |
+| 🎬 [Audio Segmenter](./audio-segmenter) | Media Processing | Extracts audio from video and precisely slices it based on `.srt` or `.lrc` subtitle timestamps. Supports both GUI and CLI. | `Tkinter`, `moviepy`, `pydub` | [**v1.0 EXE**](https://github.com/Eric-LLMs/Standalone-Toolkit-Box/releases/latest) |
+| 🚧 (Upcoming Tool) | TBD | ...                                                                                                                         | ... | - |
 
 *(More handy utilities coming soon...)*
 
@@ -34,15 +35,13 @@ Click on a tool's name to navigate to its dedicated directory and view detailed 
 
 1. Clone this repository to your local machine:
    ```bash
-   git clone https://github.com/your-username/Standalone-Toolkit-Box.git
+   git clone https://github.com/Eric-LLMs/Standalone-Toolkit-Box.git
    cd Standalone-Toolkit-Box
-
-
+    ```
 2. Pick the tool you need from the directory above and navigate to its folder. For example:
-```bash
-cd audio-segmenter
-
-```
+   ```bash
+   cd audio-segmenter 
+   ```
 
 
 3. Read the `README.md` located *inside* that specific tool's folder for instructions on setting up its isolated environment and running the scripts.
