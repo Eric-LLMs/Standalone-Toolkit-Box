@@ -92,6 +92,7 @@ Thumbs.db
 *.mov
 *.mp3
 *.wav
+.exe
 
 # Log files
 *.log
