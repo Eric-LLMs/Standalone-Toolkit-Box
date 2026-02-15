@@ -1,0 +1,4 @@
+moviepy==1.0.3
+pydub==0.25.1
+# Optional: Needed only for building the exe
+pyinstaller==6.4.0
