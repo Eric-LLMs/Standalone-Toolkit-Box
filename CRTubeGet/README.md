@@ -13,7 +13,9 @@ per-video cancellation.
 
 ## Features
 
-![CRTubeGet Screenshot](screenshots/demo.png)  
+![Download Progress](screenshots/downloading_show.png)
+
+![Settings Dialog](screenshots/setting_show.png)
 
 - **Auto-detect** single video vs playlist from any YouTube URL
 - **Playlist confirmation dialog** — choose to download all videos or just the one you opened
@@ -190,29 +192,21 @@ pip install pyinstaller
 
 ### 2. Run PyInstaller
 
-**Simple — single-file executable:**
-```powershell
-pyinstaller --onefile --windowed --name CRTubeGet CRTubeGet.py
-```
-
-**Recommended — with bundled data files:**
+**Recommended — single-file exe with deno bundled:**
 ```powershell
 pyinstaller `
   --onefile `
   --windowed `
   --name CRTubeGet `
   --add-data "crtubeget;crtubeget" `
-  --add-data "requirements.txt;." `
-  --hidden-import yt_dlp `
-  --hidden-import yt_dlp.extractor `
-  --hidden-import yt_dlp.downloader `
+  --add-binary "deno.exe;." `
   --collect-all yt_dlp `
   CRTubeGet.py
 ```
 
-### 3. Include deno and ffmpeg (optional)
+### 3. Include ffmpeg (optional)
 
-To bundle deno and ffmpeg into the exe so the target machine needs nothing:
+To also bundle ffmpeg so the target machine needs nothing:
 
 ```powershell
 pyinstaller `
@@ -222,7 +216,6 @@ pyinstaller `
   --add-data "crtubeget;crtubeget" `
   --add-binary "deno.exe;." `
   --add-binary "C:\ffmpeg\bin\ffmpeg.exe;." `
-  --hidden-import yt_dlp `
   --collect-all yt_dlp `
   CRTubeGet.py
 ```
@@ -247,6 +240,35 @@ folder for authenticated downloads.
 | `--hidden-import MOD` | Force-include a module PyInstaller may miss |
 | `--collect-all MOD` | Collect all submodules, data files, and binaries from a package |
 | `--icon icon.ico` | Set the .exe icon |
+
+---
+
+## 🏗️ Building a Truly Portable Windows EXE
+
+By default, the `.exe` requires deno and ffmpeg to be installed on the target system. To create a **completely standalone** version that includes everything inside the `.exe`, follow these steps:
+
+### 1. Requirements for Building
+
+You can package this tool into a single `.exe` file that runs on any Windows machine **without** requiring Python, deno, or ffmpeg.
+
+- Download `ffmpeg.exe` (Release Essentials version recommended) from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/).
+- Ensure `deno.exe` is placed in the `CRTubeGet/` folder (download from [deno releases](https://github.com/denoland/deno/releases)).
+- Ensure your entry point (`CRTubeGet.py`) includes the `sys._MEIPASS` path routing logic to locate bundled binaries at runtime.
+
+### 2. Run the Portable Build Command
+
+From the `CRTubeGet/` directory:
+
+```bash
+pyinstaller --noconfirm --clean --onefile --windowed --name "CRTubeGet" --add-data "crtubeget;crtubeget" --add-binary "deno.exe;." --add-binary "ffmpeg.exe;." --add-binary "$env:CONDA_PREFIX\Library\bin\libssl-3-x64.dll;." --add-binary "$env:CONDA_PREFIX\Library\bin\libcrypto-3-x64.dll;." --add-binary "$env:CONDA_PREFIX\Library\bin\tcl86t.dll;." --add-binary "$env:CONDA_PREFIX\Library\bin\tk86t.dll;." --hidden-import yt_dlp --collect-all yt_dlp CRTubeGet.py
+```
+
+> The `libssl` / `libcrypto` / `tcl86t` / `tk86t` DLLs are **only needed for conda environments** where the base environment has conflicting versions. Skip them if using a standard Python installation.
+
+- **File Size:** The resulting `.exe` will be around 80–120 MB because it contains the yt-dlp engine, deno runtime, and ffmpeg.
+- **Portability:** You can now copy `CRTubeGet.exe` to any Windows computer with zero dependencies, and it will work perfectly.
+
+### 3. The resulting `CRTubeGet.exe` will be found in the `dist/` folder.
 
 ---
 

@@ -2,6 +2,7 @@
 
 import os
 import queue
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -75,6 +76,146 @@ def _humanize_error(raw: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Settings dialog
+# ---------------------------------------------------------------------------
+
+
+class SettingsDialog:
+    """Modal settings dialog for output, cookie, and source configuration."""
+
+    def __init__(self, parent: tk.Tk, settings: dict) -> None:
+        self.result: dict | None = None
+        self.dialog = tk.Toplevel(parent)
+        dialog = self.dialog
+        dialog.title("Settings")
+        dialog.geometry("520x280")
+        dialog.resizable(False, False)
+        dialog.transient(parent)
+        dialog.grab_set()
+
+        frame = ttk.Frame(dialog, padding=12)
+        frame.pack(fill="both", expand=True)
+        frame.columnconfigure(1, weight=1)
+
+        r = 0
+
+        # ---- Output directory ------------------------------------------
+        ttk.Label(frame, text="Output:").grid(
+            row=r, column=0, sticky="e", padx=(0, 4), pady=4,
+        )
+        out_var = tk.StringVar(value=settings.get("output_dir", ""))
+        ttk.Entry(frame, textvariable=out_var).grid(
+            row=r, column=1, sticky="ew", padx=2, pady=4,
+        )
+        ttk.Button(
+            frame, text="Browse", width=7,
+            command=lambda: self._browse_dir("Select Output Directory",
+                                             out_var),
+        ).grid(row=r, column=2, padx=2, pady=4)
+        r += 1
+
+        ttk.Separator(frame, orient="horizontal").grid(
+            row=r, column=0, columnspan=3, sticky="ew", pady=8,
+        )
+        r += 1
+
+        # ---- Cookie file -----------------------------------------------
+        ttk.Label(frame, text="Cookie File:").grid(
+            row=r, column=0, sticky="e", padx=(0, 4), pady=4,
+        )
+        cookie_var = tk.StringVar(value=settings.get("cookie_file", ""))
+        ttk.Entry(frame, textvariable=cookie_var).grid(
+            row=r, column=1, sticky="ew", padx=2, pady=4,
+        )
+        ttk.Button(
+            frame, text="Browse", width=7,
+            command=lambda: self._browse_file(
+                "Select Cookie File",
+                [("Netscape Cookie Files", "*.txt"), ("All Files", "*.*")],
+                cookie_var,
+            ),
+        ).grid(row=r, column=2, padx=2, pady=4)
+        r += 1
+
+        # ---- Cookie mode -----------------------------------------------
+        ttk.Label(frame, text="Source:").grid(
+            row=r, column=0, sticky="e", padx=(0, 4), pady=4,
+        )
+        mode_frame = ttk.Frame(frame)
+        mode_var = tk.StringVar(value=settings.get("cookie_mode", "file"))
+        for text, value in [
+            ("File", "file"), ("Browser", "browser"), ("OAuth2", "oauth2"),
+        ]:
+            ttk.Radiobutton(
+                mode_frame, text=text, variable=mode_var, value=value,
+            ).pack(side="left")
+        browser_var = tk.StringVar(value=settings.get("browser", "chrome"))
+        browser_combo = ttk.Combobox(
+            mode_frame, textvariable=browser_var,
+            values=["chrome", "firefox", "edge", "brave", "opera"],
+            state="readonly", width=10,
+        )
+        browser_combo.pack(side="left", padx=(6, 0))
+        mode_frame.grid(row=r, column=1, columnspan=2, sticky="w", padx=2, pady=4)
+
+        def _on_mode_change():
+            if mode_var.get() == "browser":
+                browser_combo.configure(state="readonly")
+            else:
+                browser_combo.configure(state="disabled")
+
+        mode_var.trace_add("write", lambda *_: _on_mode_change())
+        _on_mode_change()
+
+        r += 1
+        ttk.Separator(frame, orient="horizontal").grid(
+            row=r, column=0, columnspan=3, sticky="ew", pady=8,
+        )
+        r += 1
+
+        # Close dialog when settings are saved
+        self.out_var = out_var
+        self.cookie_var = cookie_var
+        self.mode_var = mode_var
+        self.browser_var = browser_var
+
+        # ---- Buttons ---------------------------------------------------
+        btn_frame = ttk.Frame(frame)
+        ttk.Button(
+            btn_frame, text="Save", command=lambda: self._save(dialog),
+        ).pack(side="left", padx=4)
+        ttk.Button(
+            btn_frame, text="Cancel", command=dialog.destroy,
+        ).pack(side="left", padx=4)
+        btn_frame.grid(row=r, column=0, columnspan=3, pady=4)
+
+        dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+
+    @staticmethod
+    def _browse_dir(title: str, var: tk.StringVar) -> None:
+        from tkinter import filedialog
+        d = filedialog.askdirectory(title=title)
+        if d:
+            var.set(d)
+
+    @staticmethod
+    def _browse_file(title: str, filetypes: list, var: tk.StringVar) -> None:
+        from tkinter import filedialog
+        f = filedialog.askopenfilename(title=title, filetypes=filetypes)
+        if f:
+            var.set(f)
+
+    def _save(self, dialog: tk.Toplevel) -> None:
+        self.result = {
+            "output_dir": self.out_var.get(),
+            "cookie_file": self.cookie_var.get(),
+            "cookie_mode": self.mode_var.get(),
+            "browser": self.browser_var.get(),
+        }
+        dialog.destroy()
+
+
+# ---------------------------------------------------------------------------
 # App class
 # ---------------------------------------------------------------------------
 
@@ -92,7 +233,14 @@ class CRTubeGetApp:
         self.ui_queue: queue.Queue = queue.Queue()
 
         # ---- path defaults -----------------------------------------------
-        script_dir = Path(__file__).parent.parent  # repo root
+        frozen = getattr(sys, "frozen", False)
+        if frozen:
+            script_dir = Path(sys.executable).parent   # exe directory
+            bundle_dir = Path(sys._MEIPASS)            # temp extraction dir
+        else:
+            script_dir = Path(__file__).parent.parent  # repo root
+            bundle_dir = script_dir
+
         self._default_output = str(script_dir / "dataset")
         self._default_cookie = str(script_dir / "cookies.txt")
         if not os.path.exists(self._default_cookie):
@@ -108,12 +256,13 @@ class CRTubeGetApp:
 
         # ---- executable auto-detection ----------------------------------
         self.ffmpeg_path = find_executable("ffmpeg", [
+            str(bundle_dir / "ffmpeg.exe"),
             r"C:\ffmpeg\bin\ffmpeg.exe",
         ])
-        # deno: project root first (bundled), then PATH via shutil.which()
-        bundled_deno = str(script_dir / "deno.exe")
+        # deno: bundle_dir first (PyInstaller), then exe/script dir, then PATH
         self.deno_path = find_executable("deno", [
-            bundled_deno,
+            str(bundle_dir / "deno.exe"),
+            str(script_dir / "deno.exe"),
         ])
 
         # ---- state ------------------------------------------------------
@@ -125,6 +274,7 @@ class CRTubeGetApp:
         self.error_count: int = 0
         self.total_selected: int = 0
         self._effective_output_subdir: str = ""
+        self._error_details: list[str] = []
 
         self.progress_rows: dict[int, VideoProgressRow] = {}
 
@@ -302,66 +452,26 @@ class CRTubeGetApp:
         self._sep(r)
         r += 1
 
-        # Settings bar
-        settings_frame = ttk.Frame(self.root)
-        settings_frame.columnconfigure(1, weight=1, minsize=100)
-        settings_frame.columnconfigure(4, weight=1, minsize=100)
+        # Bottom bar — compact
+        bottom_frame = ttk.Frame(self.root)
 
-        ttk.Label(settings_frame, text="Output:").grid(
-            row=0, column=0, padx=4, sticky="e",
-        )
-        self.output_entry = ttk.Entry(
-            settings_frame, textvariable=self.output_var,
-        )
-        self.output_entry.grid(row=0, column=1, sticky="ew", padx=2)
-        ttk.Button(
-            settings_frame, text="Browse", width=7,
-            command=self._browse_output,
-        ).grid(row=0, column=2, padx=2)
-
-        ttk.Label(settings_frame, text="Cookie:").grid(
-            row=0, column=3, padx=4, sticky="e",
-        )
-        self.cookie_entry = ttk.Entry(
-            settings_frame, textvariable=self.cookie_var,
-        )
-        self.cookie_entry.grid(row=0, column=4, sticky="ew", padx=2)
-        ttk.Button(
-            settings_frame, text="Browse", width=7,
-            command=self._browse_cookie,
-        ).grid(row=0, column=5, padx=2)
-
-        ttk.Label(settings_frame, text="Source:").grid(
-            row=0, column=6, padx=(8, 2), sticky="e",
-        )
-        cookie_mode_frame = ttk.Frame(settings_frame)
-        for text, value in [
-            ("File", "file"), ("Browser", "browser"), ("OAuth2", "oauth2"),
-        ]:
-            ttk.Radiobutton(
-                cookie_mode_frame, text=text, variable=self.cookie_mode,
-                value=value, command=self._on_cookie_mode_change,
-            ).pack(side="left")
-        self.browser_combo = ttk.Combobox(
-            cookie_mode_frame, textvariable=self.browser_var,
-            values=["chrome", "firefox", "edge", "brave", "opera"],
-            state="readonly", width=10,
-        )
-        cookie_mode_frame.grid(row=0, column=7, padx=2, sticky="w")
-
-        ttk.Label(settings_frame, text="Parallel:").grid(
-            row=0, column=8, padx=(12, 2), sticky="e",
-        )
+        ttk.Label(bottom_frame, text="Parallel:").pack(side="left", padx=(2, 2))
         ttk.Spinbox(
-            settings_frame, from_=1, to=8, width=4,
+            bottom_frame, from_=1, to=8, width=4,
             textvariable=self.concurrency_var,
-        ).grid(row=0, column=9, padx=2)
+        ).pack(side="left", padx=2)
 
         ttk.Checkbutton(
-            settings_frame, text="Subfolder", variable=self.auto_subfolder,
-        ).grid(row=0, column=10, padx=(6, 2))
+            bottom_frame, text="Subfolder", variable=self.auto_subfolder,
+        ).pack(side="left", padx=(8, 2))
 
-        settings_frame.grid(row=r, column=0, sticky="ew", padx=8, pady=4)
+        self.settings_btn = ttk.Button(
+            bottom_frame, text="Settings", width=9,
+            command=self._open_settings,
+        )
+        self.settings_btn.pack(side="right", padx=(16, 2))
+
+        bottom_frame.grid(row=r, column=0, sticky="ew", padx=8, pady=4)
         r += 1
 
         # Status bar
@@ -386,8 +496,11 @@ class CRTubeGetApp:
         """Show a one-time dialog guiding the user to install deno."""
         if self.deno_path:
             return  # already found
-        script_dir = Path(__file__).parent.parent
-        target = script_dir / "deno.exe"
+        frozen = getattr(sys, "frozen", False)
+        if frozen:
+            target_path = Path(sys.executable).parent / "deno.exe"
+        else:
+            target_path = Path(__file__).parent.parent / "deno.exe"
         messagebox.showinfo(
             "deno Not Found",
             "deno (JavaScript runtime) is required to solve YouTube's "
@@ -397,7 +510,7 @@ class CRTubeGetApp:
             "     https://github.com/denoland/deno/releases/latest\n"
             "     (get deno-x86_64-pc-windows-msvc.zip)\n\n"
             "  2. Extract deno.exe and place it here:\n"
-            f"     {target}\n\n"
+            f"     {target_path}\n\n"
             "  3. Restart CRTubeGet\n\n"
             "Or install via winget:\n"
             "  winget install DenoLand.Deno",
@@ -407,33 +520,20 @@ class CRTubeGetApp:
     # Settings callbacks
     # ==================================================================
 
-    def _browse_output(self) -> None:
-        d = filedialog.askdirectory(
-            title="Select Output Directory",
-            initialdir=self.output_var.get(),
-        )
-        if d:
-            self.output_var.set(d)
-
-    def _browse_cookie(self) -> None:
-        f = filedialog.askopenfilename(
-            title="Select Cookie File",
-            filetypes=[("Netscape Cookie Files", "*.txt"), ("All Files", "*.*")],
-        )
-        if f:
-            self.cookie_var.set(f)
-
-    def _on_cookie_mode_change(self) -> None:
-        mode = self.cookie_mode.get()
-        if mode == "browser":
-            self.cookie_entry.configure(state="disabled")
-            self.browser_combo.pack(side="left", padx=(4, 0))
-        elif mode == "oauth2":
-            self.cookie_entry.configure(state="disabled")
-            self.browser_combo.pack_forget()
-        else:  # file
-            self.cookie_entry.configure(state="normal")
-            self.browser_combo.pack_forget()
+    def _open_settings(self) -> None:
+        settings = {
+            "output_dir": self.output_var.get(),
+            "cookie_file": self.cookie_var.get(),
+            "cookie_mode": self.cookie_mode.get(),
+            "browser": self.browser_var.get(),
+        }
+        dialog = SettingsDialog(self.root, settings)
+        self.root.wait_window(dialog.dialog)
+        if dialog.result:
+            self.output_var.set(dialog.result["output_dir"])
+            self.cookie_var.set(dialog.result["cookie_file"])
+            self.cookie_mode.set(dialog.result["cookie_mode"])
+            self.browser_var.set(dialog.result["browser"])
 
     # ==================================================================
     # Analysis
@@ -484,6 +584,7 @@ class CRTubeGetApp:
         self.downloading = True
         self.completed_count = 0
         self.error_count = 0
+        self._error_details.clear()
         self.total_selected = len(selected)
 
         for v in selected:
@@ -502,9 +603,17 @@ class CRTubeGetApp:
         self.download_btn.configure(state="disabled")
         self.analyze_btn.configure(state="disabled")
         self.stop_btn.configure(state="normal")
-        self._set_status(f"Downloading {self.total_selected} video(s)...")
 
         settings = self._collect_settings()
+        # Show active cookie config so user can verify what's being used
+        mode = settings["cookie_mode"]
+        if mode == "browser":
+            cookie_info = f"cookie: browser({settings['browser']})"
+        else:
+            cookie_info = f"cookie: {settings.get('cookie_file', 'none')}"
+        self._set_status(
+            f"Downloading {self.total_selected} video(s)  [{cookie_info}]"
+        )
         max_workers = self.concurrency_var.get()
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         for v in selected:
@@ -534,6 +643,16 @@ class CRTubeGetApp:
         self.download_btn.configure(state="normal")
         self.analyze_btn.configure(state="normal", text="Analyze")
         self.stop_btn.configure(state="disabled")
+
+        # Show error summary popup if any downloads failed
+        if self._error_details:
+            detail_text = "\n\n".join(self._error_details[:10])
+            if len(self._error_details) > 10:
+                detail_text += f"\n\n... and {len(self._error_details) - 10} more"
+            messagebox.showerror(
+                f"Download Errors ({self.error_count})",
+                f"{self.error_count} download(s) failed:\n\n{detail_text}",
+            )
 
     def _on_stop_all(self) -> None:
         for v in self.videos:
@@ -602,6 +721,9 @@ class CRTubeGetApp:
                 )
             elif status == "error":
                 self.error_count += 1
+                title = self.videos[idx].title if idx < len(self.videos) else f"Video #{idx}"
+                detail = error_msg or "Unknown error"
+                self._error_details.append(f"{title}\n  {detail}")
 
     # ==================================================================
     # UI helpers
@@ -692,6 +814,7 @@ class CRTubeGetApp:
         self.videos.clear()
         self.completed_count = 0
         self.error_count = 0
+        self._error_details.clear()
         self.total_selected = 0
         self._effective_output_subdir = ""
         self.overall_bar["value"] = 0
