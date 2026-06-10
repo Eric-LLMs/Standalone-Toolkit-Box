@@ -23,6 +23,7 @@ Click on a tool's name to navigate to its dedicated directory and view detailed 
 | Tool Name | Category | Description                                                                                                                 | Tech Stack | Latest Download |
 | :--- | :--- |:----------------------------------------------------------------------------------------------------------------------------| :--- | :--- |
 | 🎬 [Audio Segmenter](./audio-segmenter) | Media Processing | Extracts audio from video and precisely slices it based on `.srt` or `.lrc` subtitle timestamps. Supports both GUI and CLI. | `Tkinter`, `moviepy`, `pydub` | [**v1.0 EXE**](https://github.com/Eric-LLMs/Standalone-Toolkit-Box/releases/latest) |
+| 📥 [CRTubeGet](./CRTubeGet) | Media Processing | YouTube video & playlist downloader with GUI, parallel processing and real-time progress. Supports subtitles and cookies. | `Tkinter`, `yt-dlp` | - |
 | 🚧 (Upcoming Tool) | TBD | ...                                                                                                                         | ... | - |
 
 *(More handy utilities coming soon...)*
