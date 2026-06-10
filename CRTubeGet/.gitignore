@@ -1,0 +1,66 @@
+# Credentials — NEVER commit
+cookies.txt
+*.cookies
+
+# Downloaded videos
+dataset/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# PyInstaller
+*.spec
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Binaries
+*.exe
+
+# Media files (downloaded by yt-dlp)
+*.mp4
+*.mkv
+*.webm
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.opus
+*.aac
+*.avi
+*.mov
+*.wmv
+
+# Subtitle / metadata files
+*.srt
+*.lrc
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+
+# Claude Code
+.claude/
