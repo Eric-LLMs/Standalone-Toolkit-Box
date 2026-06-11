@@ -24,9 +24,10 @@ Click on a tool's name to navigate to its dedicated directory and view detailed 
 | :--- | :--- |:----------------------------------------------------------------------------------------------------------------------------| :--- | :--- |
 | 🎬 [Audio Segmenter](./audio-segmenter) | Media Processing | Extracts audio from video and precisely slices it based on `.srt` or `.lrc` subtitle timestamps. Supports both GUI and CLI. | `Tkinter`, `moviepy`, `pydub` | [**v1.0 EXE**](https://github.com/Eric-LLMs/Standalone-Toolkit-Box/releases/latest) |
 | 📥 [CRTubeGet](./CRTubeGet) | Media Processing | YouTube video & playlist downloader with GUI, parallel processing and real-time progress. Supports subtitles and cookies. | `Tkinter`, `yt-dlp` | - |
+| 📝 [VTT Subtitle Converter](./vtt2sub) | Subtitle Tools | Convert WebVTT (.vtt) subtitles to LRC or SRT format. Batch scan, checkbox selection, custom output dir. CLI + GUI. | `Python stdlib` | - |
 | 🚧 (Upcoming Tool) | TBD | ...                                                                                                                         | ... | - |
 
-*(More handy utilities coming soon...)*
+*(More handy utilities coming soon...)*  
 
 ---
 
