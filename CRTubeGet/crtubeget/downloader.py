@@ -178,7 +178,7 @@ def _handle_playlist(info: dict, ui_queue) -> None:
     for i, entry in enumerate(info.get("entries", [])):
         if entry is None:
             continue
-        title = entry.get("title", f"Video {i + 1}")
+        title = entry.get("title") or f"Video {i + 1}"
         vid_id = entry.get("id", "")
         vid_url = entry.get("url") or f"https://www.youtube.com/watch?v={vid_id}"
 

@@ -24,7 +24,8 @@ class VideoProgressRow:
         cb.grid(row=0, column=0, padx=2)
 
         # Title (truncated to 70 characters)
-        display = entry.title[:70] + "..." if len(entry.title) > 70 else entry.title
+        title = entry.title or "(unavailable)"
+        display = title[:70] + "..." if len(title) > 70 else title
         self.title_label = ttk.Label(self.frame, text=display, anchor="w")
         self.title_label.grid(row=0, column=1, sticky="ew", padx=2)
 
