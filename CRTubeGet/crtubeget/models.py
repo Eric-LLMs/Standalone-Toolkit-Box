@@ -12,6 +12,7 @@ class VideoEntry:
     url: str
     duration: str = ""
     checked: bool = True
+    total_count: int = 1
     status: str = "pending"       # pending | downloading | completed | error
     progress: float = 0.0
     speed: str = ""

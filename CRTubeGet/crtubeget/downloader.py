@@ -104,6 +104,12 @@ def run_download(
         return
 
     opts = build_download_opts(settings)
+    if entry.total_count > 1:
+        padding = len(str(entry.total_count))
+        prefix = f"{entry.index + 1:0{padding}d} - "
+        opts["outtmpl"] = os.path.join(
+            str(settings["output_dir"]), f"{prefix}%(title)s.%(ext)s"
+        )
     opts["progress_hooks"] = [_make_progress_hook(entry, ui_queue)]
 
     try:
@@ -142,7 +148,12 @@ def _apply_js_runtime(opts: dict, settings: dict[str, Any]) -> None:
     """Add deno JS runtime for n-challenge solving, if available."""
     deno_path = settings.get("deno_path")
     if deno_path:
-        opts["javascript_runtimes"] = [f"deno:{deno_path}"]
+        import os as _os
+        _deno_dir = _os.path.dirname(deno_path)
+        _existing = _os.environ.get("PATH", "")
+        if _deno_dir not in _existing.split(_os.pathsep):
+            _os.environ["PATH"] = _deno_dir + _os.pathsep + _existing
+        opts["javascript_runtimes"] = ["deno"]
         opts["remote_components"] = ["ejs:github"]
 
 
@@ -175,12 +186,22 @@ def _handle_playlist(info: dict, ui_queue) -> None:
     playlist_title = info.get("title", "Unknown Playlist")
     entries: list[VideoEntry] = []
 
-    for i, entry in enumerate(info.get("entries", [])):
+    raw_entries = info.get("entries", [])
+    total = len(raw_entries)
+
+    for i, entry in enumerate(raw_entries):
         if entry is None:
             continue
         title = entry.get("title") or f"Video {i + 1}"
         vid_id = entry.get("id", "")
         vid_url = entry.get("url") or f"https://www.youtube.com/watch?v={vid_id}"
+
+        # Use YouTube's playlist_index (1-based) to keep correct lesson order
+        playlist_idx = entry.get("playlist_index")
+        if playlist_idx is not None:
+            pos = playlist_idx
+        else:
+            pos = i + 1
 
         raw_duration = entry.get("duration") or ""
         duration_str = ""
@@ -192,11 +213,12 @@ def _handle_playlist(info: dict, ui_queue) -> None:
                 pass
 
         entries.append(VideoEntry(
-            index=i,
+            index=pos - 1,
             title=title,
             url=vid_url,
             checked=True,
             duration=duration_str,
+            total_count=total,
         ))
 
     if not entries:
