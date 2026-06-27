@@ -103,15 +103,18 @@ class AudioSegmenterApp:
     def parse_lrc(self, file_path):
         """
         [FIXED]: Supports both [MM:SS.xx] and [HH:MM:SS.xx]
+        [FIXED]: Merges consecutive lines with identical timestamps to avoid
+                 zero-duration segments that cause ffmpeg errors.
         """
         subs = []
-        # 正则表达式支持可选的 小时数 (HH:)
-        pattern = re.compile(r'\[(?:(\d{2}):)?(\d{2}):(\d{2}\.\d{2,3})\]')
+        pattern = re.compile(r'\[(?:(\d{2}):)?(\d{2}):(\d{2}\.\d{1,3})\]')
 
         with open(file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
-        for i, line in enumerate(lines):
+        # Step 1: Extract raw timestamp-text pairs
+        raw_items = []
+        for line in lines:
             match = pattern.search(line)
             if match:
                 h, m, s = match.groups()
@@ -119,27 +122,32 @@ class AudioSegmenterApp:
                 m = int(m)
                 s = float(s)
                 start_time = h * 3600 + m * 60 + s
-
                 text = line[match.end():].strip()
-                if not text:
-                    continue
+                if text:
+                    raw_items.append({'start': start_time, 'text': text})
 
-                # Find end time from the next valid timestamp
-                end_time = None
-                for j in range(i + 1, len(lines)):
-                    next_match = pattern.search(lines[j])
-                    if next_match:
-                        nh, nm, ns = next_match.groups()
-                        nh = int(nh) if nh else 0
-                        nm = int(nm)
-                        ns = float(ns)
-                        end_time = nh * 3600 + nm * 60 + ns
-                        break
+        if not raw_items:
+            return subs
 
-                if end_time is None:
-                    end_time = start_time + 5.0  # Default 5s for the last line
+        # Step 2: Merge consecutive items with the same timestamp (within 1ms)
+        merged_items = []
+        for item in raw_items:
+            if merged_items and abs(merged_items[-1]['start'] - item['start']) < 0.001:
+                merged_items[-1]['text'] += " " + item['text']
+            else:
+                merged_items.append({'start': item['start'], 'text': item['text']})
 
-                subs.append({'start': start_time, 'end': end_time, 'text': text})
+        # Step 3: Compute end times from the next different timestamp
+        for i, item in enumerate(merged_items):
+            if i < len(merged_items) - 1:
+                end_time = merged_items[i + 1]['start']
+            else:
+                end_time = item['start'] + 5.0  # Default 5s for the last line
+            subs.append({
+                'start': item['start'],
+                'end': end_time,
+                'text': item['text'],
+            })
         return subs
 
     def parse_srt(self, file_path):
@@ -206,6 +214,19 @@ class AudioSegmenterApp:
             for i, item in enumerate(subtitles):
                 start_ms = int(item['start'] * 1000)
                 end_ms = int(item['end'] * 1000)
+
+                if start_ms >= end_ms:
+                    continue
+
+                # Skip segments that start beyond the audio duration
+                audio_len_ms = len(full_audio)
+                if start_ms >= audio_len_ms:
+                    continue
+
+                # Clamp end time to audio length (video may be shorter than subtitles)
+                if end_ms > audio_len_ms:
+                    end_ms = audio_len_ms
+
                 text = item['text']
 
                 # Generate MD5 hash for filename

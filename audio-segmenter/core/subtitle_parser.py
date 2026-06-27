@@ -78,15 +78,23 @@ def parse_lrc_file(lrc_path):
             if start_ms is not None:
                 raw_segments.append({'start_ms': start_ms, 'text': text})
 
-    for i in range(len(raw_segments)):
-        start_ms = raw_segments[i]['start_ms']
-        text = raw_segments[i]['text']
+    # Merge consecutive items with the same start time to avoid 0-duration segments
+    merged = []
+    for seg in raw_segments:
+        if merged and merged[-1]['start_ms'] == seg['start_ms']:
+            merged[-1]['text'] += ' ' + seg['text']
+        else:
+            merged.append(seg)
+
+    for i in range(len(merged)):
+        start_ms = merged[i]['start_ms']
+        text = merged[i]['text']
 
         if not text:
             continue
 
-        if i < len(raw_segments) - 1:
-            end_ms = raw_segments[i + 1]['start_ms']
+        if i < len(merged) - 1:
+            end_ms = merged[i + 1]['start_ms']
         else:
             end_ms = start_ms + 3000
 

@@ -14,9 +14,9 @@ from pathlib import Path
 #   MM:SS.mmm
 #   MM:SS.mm
 _TS_RE = re.compile(
-    r"(?:(\d+):)?(\d{2}):(\d{2})\.(\d{2,3})"
+    r"(?:(\d+):)?(\d{2}):(\d{2})\.(\d{1,3})"
     r"\s*-->\s*"
-    r"(?:(\d+):)?(\d{2}):(\d{2})\.(\d{2,3})"
+    r"(?:(\d+):)?(\d{2}):(\d{2})\.(\d{1,3})"
 )
 
 
@@ -127,7 +127,7 @@ def _strip_header(raw: str) -> str:
 def _strip_vtt_tags(line: str) -> str:
     """Strip all VTT markup: <c>, <v>, <b>, <i>, word-level timestamps, etc."""
     # Remove word-level timestamp tags like <00:00:05.680>
-    line = re.sub(r"<\d+:\d{2}:\d{2}\.\d{2,3}>", "", line)
+    line = re.sub(r"<\d+:\d{2}:\d{2}\.\d{1,3}>", "", line)
     # Remove <c.xxx>, <c>, </c> (color/class spans — multi-class support)
     line = re.sub(r"</?c(?:\.\w+)*>", "", line)
     # Remove <v.xxx>, <v>, </v> (voice spans)
@@ -157,8 +157,8 @@ def _parse_ts_groups(m: re.Match, base: int) -> tuple[int, int, int, int]:
 # ------------------------------------------------------------------
 
 def _build_lrc(cues: list[dict]) -> str:
-    """Build LRC output — deduplicate overlapping text from adjacent cues."""
-    lines: list[str] = []
+    """Build LRC output — deduplicate overlapping text, merge same-timestamp lines."""
+    entries: list[tuple[str, str]] = []  # (timestamp, text)
     seen: set[str] = set()
     for cue in cues:
         h, m, s, ms = cue["start"]
@@ -168,14 +168,21 @@ def _build_lrc(cues: list[dict]) -> str:
         for text in cue["text_lines"]:
             if text in seen:
                 continue
-            lines.append(f"{ts}{text}")
+            entries.append((ts, text))
             seen.add(text)
             if len(seen) > 20:
-                # Re-seed from last 5 output lines
+                # Re-seed from last 5 output entries
                 seen.clear()
-                for prev in lines[-5:]:
-                    bracket_end = prev.index("]") + 1
-                    seen.add(prev[bracket_end:])
+                for prev_ts, prev_text in entries[-5:]:
+                    seen.add(prev_text)
+
+    # Merge consecutive entries with the same timestamp
+    lines: list[str] = []
+    for ts, text in entries:
+        if lines and lines[-1].startswith(ts):
+            lines[-1] = f"{ts}{lines[-1][len(ts):]} {text}"
+        else:
+            lines.append(f"{ts}{text}")
     return "\n".join(lines) + "\n"
 
 
